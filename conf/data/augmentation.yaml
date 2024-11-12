@@ -1,0 +1,24 @@
+train_transforms:
+  _target_: torchvision.transforms.v2.Compose
+  transforms:
+    - _target_: torchvision.transforms.v2.ToImage
+    - _target_: torchvision.transforms.v2.RandomHorizontalFlip
+    - _target_: torchvision.transforms.v2.RandomResizedCrop
+      size: 224
+      scale:
+        - 0.9
+        - 1.1
+      ratio:
+        - 0.9
+        - 1.1
+    - _target_: torchvision.transforms.v2.RGB
+test_transforms:
+  _target_: torchvision.transforms.v2.Compose
+  transforms:
+    - _target_: torchvision.transforms.v2.ToImage
+    - _target_: torchvision.transforms.v2.Resize
+      size: null
+      max_size: 224
+    - _target_: torchvision.transforms.v2.CenterCrop
+      size: 224
+    - _target_: torchvision.transforms.v2.RGB

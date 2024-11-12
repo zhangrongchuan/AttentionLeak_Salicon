@@ -1,0 +1,11 @@
+train_transforms:
+  _target_: torchvision.transforms.v2.Compose
+  transforms:
+    - _target_: torchvision.transforms.v2.ToImage
+    - _target_: torchvision.transforms.v2.Resize
+      size: null
+      max_size: 224
+    - _target_: torchvision.transforms.v2.CenterCrop
+      size: 224
+    - _target_: torchvision.transforms.v2.RGB
+test_transforms: ${data.train_transforms}

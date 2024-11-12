@@ -1,0 +1,23 @@
+# @package _global_
+
+data:
+  label:
+    - "complexity"
+
+model:
+  labels: ${data.label}
+  num_classes:
+    - ${num_classes:${data.path},complexity}
+  class_names:
+    - ${class_names:${data.path},complexity}
+
+trainer:
+  callbacks:
+    - _target_: lightning.pytorch.callbacks.EarlyStopping
+      monitor: val/complexity/macro_accuracy
+      patience: 20
+      mode: max
+    - _target_: lightning.pytorch.callbacks.ModelCheckpoint
+      monitor: val/complexity/macro_accuracy
+      save_top_k: 1
+      mode: max

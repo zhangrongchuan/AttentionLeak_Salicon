@@ -1,0 +1,23 @@
+# @package _global_
+
+data:
+  label:
+    - "is_chart_simple"
+
+model:
+  labels: ${data.label}
+  num_classes:
+    - ${num_classes:${data.path},is_chart_simple}
+  class_names:
+    - ${class_names:${data.path},is_chart_simple}
+
+trainer:
+  callbacks:
+    - _target_: lightning.pytorch.callbacks.EarlyStopping
+      monitor: val/is_chart_simple/macro_accuracy
+      patience: 20
+      mode: max
+    - _target_: lightning.pytorch.callbacks.ModelCheckpoint
+      monitor: val/is_chart_simple/macro_accuracy
+      save_top_k: 1
+      mode: max

@@ -1,0 +1,23 @@
+defaults:
+  - optimizer: adamw
+
+_target_: app.model.MultiTaskModel
+backbone:
+  _target_: timm.create_model
+  model_name: resnet101
+  pretrained: true
+  num_classes: 0
+loss:
+  _target_: torch.nn.CrossEntropyLoss
+loss_aggregation: linear
+train_metrics:
+  accuracy:
+    _target_: torchmetrics.Accuracy
+    _partial_: true
+    task: multiclass
+  macro_accuracy:
+    _target_: torchmetrics.Accuracy
+    _partial_: true
+    task: multiclass
+    average: macro
+test_metrics: ${model.train_metrics}
