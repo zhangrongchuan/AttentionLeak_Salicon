@@ -4,7 +4,7 @@ defaults:
 
 data:
   _target_: app.data.SalChartQA
-  path: ${oc.env:DATA_PATH}
+  path: data/filtered_question_type_ans_correct
   sampling_strategy: "random"
   dataloader:
     _target_: torch.utils.data.DataLoader
@@ -26,7 +26,6 @@ model:
 
 trainer:
   _target_: lightning.Trainer
-  default_root_dir: ${oc.env:OUTPUT_PATH}
   max_epochs: 100
   callbacks:
     - _target_: lightning.pytorch.callbacks.EarlyStopping
@@ -37,10 +36,9 @@ trainer:
       monitor: val/macro_accuracy
       save_top_k: 1
       mode: max
-  logger:
-    _target_: lightning.pytorch.loggers.WandbLogger
-    project: "salchartqa-attack"
-    log_model: false
-    save_dir: ${oc.env:OUTPUT_PATH}
+  # logger:
+  #   _target_: lightning.pytorch.loggers.WandbLogger
+  #   project: "salchartqa-attack"
+  #   log_model: false
   benchmark: true
   enable_progress_bar: false
