@@ -13,7 +13,7 @@ Easiest way to setup the environment is to use [uv](https://github.com/astral-sh
 3. Activate the virtual environment using `source .env/bin/activate`.
 4. Install the project and its dependencies using `pip install .`.
 
-### 2️⃣ Prepare Dataset
+## 2️⃣ Prepare Dataset
 
 1. Download the dataset from [Salicon Dataset Site](https://salicon.net/challenge-2017/) and select the "Download Fixation Maps". extract the zip into `data/` directory.
 2. Run `python -m app.data data/maps data/filtered_data --correct-only` to create the filtered dataset.
