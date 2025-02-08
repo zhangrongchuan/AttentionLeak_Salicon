@@ -2,7 +2,7 @@ import json
 from functools import partial
 from pathlib import Path
 from typing import Literal
-
+import os
 import lightning as L
 import networkx as nx
 import polars as pl
@@ -13,6 +13,10 @@ from PIL import Image
 from torch.utils.data import DataLoader, Sampler, WeightedRandomSampler
 from torchvision import tv_tensors
 from torchvision.transforms import v2
+
+from lightning import seed_everything
+
+seed_everything(42, workers=True)
 
 app = typer.Typer()
 
@@ -55,7 +59,7 @@ def prepare_dataframe(dataframe: pl.DataFrame, questions) -> pl.DataFrame:
     dataframe = dataframe.with_columns(
         pl.col("image_name")
         .replace(name_to_component)
-        .cast(pl.UInt8)
+        .cast(pl.UInt16)
         .alias("component")
     )
     new_df = pl.from_dicts(
@@ -67,7 +71,7 @@ def prepare_dataframe(dataframe: pl.DataFrame, questions) -> pl.DataFrame:
     )
     dataframe = (
         dataframe.group_by(
-            [
+            [   "participant_id",
                 "image_name",  # used to join with question number
                 "image_type",  # potential attribute to infer
                 "question",  # used to join with question number
@@ -95,10 +99,10 @@ def prepare_data(input: Path, output: Path, correct_only: bool = False):
     input = input.expanduser()
     output = output.expanduser()
 
-    dataframe = pl.read_csv(input / "unified_approved.csv")
+    dataframe = pl.read_csv(input / "output.csv")
     questions = json.loads((input / "image_questions.json").read_text())
     dataframe = prepare_dataframe(dataframe, questions)
-    dataframe = dataframe.with_columns(
+    dataframe = dataframe.with_columns( 
         pl.col("question_type").replace(["Other", "CL", "CP", "U"], None)
     )
 
@@ -107,9 +111,11 @@ def prepare_data(input: Path, output: Path, correct_only: bool = False):
             return dict(
                 image_path=str(
                     input
-                    / "saliency_ans"
+                    / "salcon"
+                    # / "saliency_ans"
                     / "heatmaps"
-                    / f"{row["image_name"].split(".")[0]}_{row["question_number"]}_True.png"
+                    / f"{row["participant_id"].split(".")[0]}.png"
+                    # / f"{row["image_name"].split(".")[0]}_{row["question_number"]}_True.png"
                 )
             )
         else:
@@ -141,8 +147,8 @@ def prepare_data(input: Path, output: Path, correct_only: bool = False):
     )
     dataset_dict = DatasetDict(
         {
-            "train": dataset.filter(lambda x: x < 120, input_columns="component"),
-            "test": dataset.filter(lambda x: x >= 120, input_columns="component"),
+            "train": dataset.filter(lambda x: x < 6500, input_columns="component"),
+            "test": dataset.filter(lambda x: x >= 6500, input_columns="component"),
         }
     )
     dataset_dict.save_to_disk(output)
@@ -266,4 +272,7 @@ class SalChartQA(L.LightningDataModule):
 
 
 if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, "/scratch/users/mpl_07/zhang")
+    os.chdir("/scratch/users/mpl_07/zhang")
     app()

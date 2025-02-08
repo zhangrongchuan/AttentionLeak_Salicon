@@ -1,6 +1,7 @@
 from copy import deepcopy
 from typing import Literal
 
+import pdb
 import lightning as L
 import torch
 import torchmetrics
@@ -36,6 +37,24 @@ TASKS_LOSS_AGGREGATIONS: dict[T_TASKS_LOSS_AGGREGATIONS, type[nn.Module]] = {
     "uncertainty_weighting": UncertaintyWeightingMultiTask,
     "linear": LinearWeightingMultiTask,
 }
+import torch
+import torch.nn.functional as F
+
+class FocalLoss(torch.nn.Module):
+    def __init__(self, gamma=2.0, alpha=None, reduction='mean'):
+        super().__init__()
+        self.gamma = gamma
+        self.alpha = alpha
+        self.reduction = reduction
+
+    def forward(self, logits, targets):
+        ce_loss = F.cross_entropy(logits, targets, reduction="none")
+        p_t = torch.exp(-ce_loss)
+        focal_loss = (1 - p_t) ** self.gamma * ce_loss
+        return focal_loss.mean() if self.reduction == "mean" else focal_loss.sum()
+
+# 在模型初始化时替换 loss
+
 
 
 class MultiTaskModel(L.LightningModule):
@@ -43,7 +62,8 @@ class MultiTaskModel(L.LightningModule):
         self,
         optimizer: type[optimizer.Optimizer],
         backbone: nn.Module,
-        loss: nn.Module,
+        # loss: nn.Module,
+        loss: FocalLoss,
         labels: list[str],
         num_classes: list[int],
         class_names: list[list[str]],
@@ -59,9 +79,9 @@ class MultiTaskModel(L.LightningModule):
         self.labels = labels
         self.num_classes = num_classes
         self.class_names = class_names
-
         train_metrics = train_metrics or {}
         test_metrics = test_metrics or {}
+        self.met = [train_metrics,test_metrics]
         self.metrics = nn.ModuleDict(
             {
                 f"train/{label}_metrics": nn.ModuleDict(
@@ -90,11 +110,21 @@ class MultiTaskModel(L.LightningModule):
 
         assert hasattr(backbone, "num_features")
         self.backbone = backbone
+        for param in self.backbone.parameters():
+            param.requires_grad = False  # 冻结所有层
+        for param in self.backbone.layer4.parameters():
+            param.requires_grad = True  # 只训练最后一层
+        # for param in self.backbone.parameters():
+        #     print(param.requires_grad)
         self.input_mean = self.backbone.pretrained_cfg["mean"]
         self.input_std = self.backbone.pretrained_cfg["std"]
         self.task_heads = nn.ModuleDict(
             {
-                label: nn.Linear(backbone.num_features, n)
+                label: nn.Sequential(
+                        nn.Dropout(p=0.5),  # 50% 概率随机丢弃神经元
+                        nn.Linear(backbone.num_features, n)
+                    )
+                # label: nn.Linear(backbone.num_features, n)
                 for label, n in zip(labels, num_classes)
             }
         )
@@ -108,30 +138,48 @@ class MultiTaskModel(L.LightningModule):
     def forward(self, inp: torch.Tensor) -> dict[str, torch.Tensor]:
         inp = normalize(inp, mean=self.input_mean, std=self.input_std)
         features = self.backbone(inp)
+        # print(features,features.shape)
         task_logits = {label: head(features) for label, head in self.task_heads.items()}
+        # print([(label, head(features)) for label, head in self.task_heads.items()])
+        # print("--------------------------------------------------------------------")
         return task_logits
 
     def step(self, batch, batch_idx, step: str) -> dict[str, torch.Tensor]:
         task_logits = self(batch["saliency_map"])
+        # print(self.num_classes)
+        # print(task_logits)
         losses = []
-        for label, logits in task_logits.items():
+        for label, logits in task_logits.items():#logits是没有softmax的predict
             loss = self.loss(logits, batch[label])
+            # print(logits,batch[label],label, batch)
             self.log(f"{step}/{label}/loss", loss)
             self.log_metrics(logits, batch[label], f"{step}/{label}")
             losses.append(loss)
+        # print("--------------------------------------------------------------------")
 
         total_loss = self.loss_agg(torch.stack(losses))
         self.log(f"{step}/total_loss", total_loss)
         return {"loss": total_loss} | task_logits
 
     def training_step(self, batch, batch_idx):
-        return self.step(batch, batch_idx, "train")
+        # print(f"Batch keys: {batch.keys()}")  # 打印 batch 里有哪些 key
+        # print(f"Saliency map shape: {batch['saliency_map'].shape}")  # 确认输入数据
+        # for key, value in batch.items():
+        #     print(f"{key}: {value.shape}")  # 检查所有 key 的数据
+        res=self.step(batch, batch_idx, "train")
+        # print(res)
+        return res
+        # return self.step(batch, batch_idx, "train")
 
     def validation_step(self, batch, batch_idx):
-        self.step(batch, batch_idx, "val")
+        res=self.step(batch, batch_idx, "val")
+        # results = self.step(batch, batch_idx, "test")
+        # self.log_wandb_table(batch, res)
+        # print(res)
 
     def test_step(self, batch, batch_idx):
         results = self.step(batch, batch_idx, "test")
+        # print(results)
         self.log_wandb_table(batch, results)
         return results
 
@@ -178,6 +226,8 @@ class MultiTaskModel(L.LightningModule):
                     metric_name,
                     summary="max" if metric.higher_is_better else "min",
                 )
+            # acc=torchmetrics.Accuracy(task="multiclass", num_classes=12,average=None).to("cuda")
+            # acc_class=acc(logits, labels)
             metric(logits, labels)
             self.log(
                 metric_name,
