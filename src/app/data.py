@@ -69,6 +69,7 @@ def prepare_dataframe(dataframe: pl.DataFrame, questions) -> pl.DataFrame:
             for y, z in yz.items()
         ]
     )
+    # print(dataframe)
     dataframe = (
         dataframe.group_by(
             [   "participant_id",
@@ -91,6 +92,8 @@ def prepare_dataframe(dataframe: pl.DataFrame, questions) -> pl.DataFrame:
         )
         .join(new_df, on=["image_name", "question"], how="inner")
     )
+    # print(dataframe)
+    print(dataframe.columns)
     return dataframe
 
 
@@ -98,8 +101,8 @@ def prepare_dataframe(dataframe: pl.DataFrame, questions) -> pl.DataFrame:
 def prepare_data(input: Path, output: Path, correct_only: bool = False):
     input = input.expanduser()
     output = output.expanduser()
-
-    dataframe = pl.read_csv(input / "output.csv")
+    # print(input)
+    dataframe = pl.read_csv(input / "4_category.csv")
     questions = json.loads((input / "image_questions.json").read_text())
     dataframe = prepare_dataframe(dataframe, questions)
     dataframe = dataframe.with_columns( 
@@ -108,12 +111,12 @@ def prepare_data(input: Path, output: Path, correct_only: bool = False):
 
     def get_image_path(row):
         if correct_only:
+            # print(input)
             return dict(
                 image_path=str(
                     input
-                    / "salcon"
-                    # / "saliency_ans"
-                    / "heatmaps"
+                    # / "maps"
+                    / "train"
                     / f"{row["participant_id"].split(".")[0]}.png"
                     # / f"{row["image_name"].split(".")[0]}_{row["question_number"]}_True.png"
                 )
@@ -122,15 +125,15 @@ def prepare_data(input: Path, output: Path, correct_only: bool = False):
             return dict(
                 image_path=str(
                     input
-                    / "saliency_all"
-                    / "heatmaps"
+                    / "maps"
+                    / "train"
                     / f"{row["image_name"].split(".")[0]}_{row["question_number"]}.png"
                 )
             )
 
     def load_image(path: str):
         return dict(saliency_map=Image.open(path))
-
+    # print(dataframe.columns)
     dataset = (
         Dataset.from_polars(dataframe)
         .class_encode_column("image_type")
@@ -145,6 +148,8 @@ def prepare_data(input: Path, output: Path, correct_only: bool = False):
         )
         .map(load_image, input_columns="image_path", desc="Load images")
     )
+    # print("------------------------------------------------------------------------")
+    # print(dataset)
     dataset_dict = DatasetDict(
         {
             "train": dataset.filter(lambda x: x < 6500, input_columns="component"),
@@ -178,7 +183,7 @@ def create_sampler(labels: torch.Tensor, strategy: SAMPLING_STRATEGIES) -> Sampl
             raise ValueError(f"Unknown strategy {strategy}")
 
 
-class SalChartQA(L.LightningDataModule):
+class SaliconDataset(L.LightningDataModule):
     def __init__(
         self,
         path: Path,
@@ -272,7 +277,7 @@ class SalChartQA(L.LightningDataModule):
 
 
 if __name__ == "__main__":
-    import sys
-    sys.path.insert(0, "/scratch/users/mpl_07/zhang")
-    os.chdir("/scratch/users/mpl_07/zhang")
+    # import sys
+    # sys.path.insert(0, "/scratch/users/mpl_07/AttentionLeak_Salicon")
+    # os.chdir("/scratch/users/mpl_07/AttentionLeak_Salicon")
     app()

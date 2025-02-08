@@ -3,8 +3,8 @@ defaults:
   - data: default
 
 data:
-  _target_: app.data.SalChartQA
-  path: data/filtered_question_type_ans_correct
+  _target_: app.data.SaliconDataset
+  path: data/filtered_data
   sampling_strategy: "random"
   dataloader:
     _target_: torch.utils.data.DataLoader

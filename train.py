@@ -9,7 +9,7 @@ from omegaconf import DictConfig, OmegaConf
 
 import wandb
 from app.conf_resolver import register_resolvers
-from app.data import SalChartQA
+from app.data import SaliconDataset
 import os
 import sys
 
