@@ -53,7 +53,7 @@ class FocalLoss(torch.nn.Module):
         focal_loss = (1 - p_t) ** self.gamma * ce_loss
         return focal_loss.mean() if self.reduction == "mean" else focal_loss.sum()
 
-# 在模型初始化时替换 loss
+# Replace loss at model initialization
 
 
 
@@ -121,7 +121,7 @@ class MultiTaskModel(L.LightningModule):
         self.task_heads = nn.ModuleDict(
             {
                 label: nn.Sequential(
-                        nn.Dropout(p=0.5),  # 50% 概率随机丢弃神经元
+                        nn.Dropout(p=0.5),  # 50% probability of randomly discarding neurons
                         nn.Linear(backbone.num_features, n)
                     )
                 # label: nn.Linear(backbone.num_features, n)
@@ -149,7 +149,7 @@ class MultiTaskModel(L.LightningModule):
         # print(self.num_classes)
         # print(task_logits)
         losses = []
-        for label, logits in task_logits.items():#logits是没有softmax的predict
+        for label, logits in task_logits.items():#Logits are predictions without softmax.
             loss = self.loss(logits, batch[label])
             # print(logits,batch[label],label, batch)
             self.log(f"{step}/{label}/loss", loss)
@@ -162,10 +162,10 @@ class MultiTaskModel(L.LightningModule):
         return {"loss": total_loss} | task_logits
 
     def training_step(self, batch, batch_idx):
-        # print(f"Batch keys: {batch.keys()}")  # 打印 batch 里有哪些 key
-        # print(f"Saliency map shape: {batch['saliency_map'].shape}")  # 确认输入数据
+        # print(f"Batch keys: {batch.keys()}")  # Print what keys are in the batch
+        # print(f"Saliency map shape: {batch['saliency_map'].shape}")  # Confirmation of input data
         # for key, value in batch.items():
-        #     print(f"{key}: {value.shape}")  # 检查所有 key 的数据
+        #     print(f"{key}: {value.shape}")  # Check data for all keys
         res=self.step(batch, batch_idx, "train")
         # print(res)
         return res
