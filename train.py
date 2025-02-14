@@ -19,7 +19,7 @@ register_resolvers()
 
 torch.set_float32_matmul_precision("high")
 
-# 将工作目录设置为脚本所在的目录
+# Set the working directory to the directory where the script is located
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 
